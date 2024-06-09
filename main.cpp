@@ -353,9 +353,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		if (x >= tableLeft && x <= tableRight) {
 			int rowHeight = (tableBottom - tableTop) / numRows;
 			int row = (y - tableTop) / rowHeight;
-			int boxInRow = (y - tableTop) % rowHeight;
 
 			if (row == 7 || row == 8 || row == 16) {
+				break;
+			}
+
+			// Calculate the column width
+			const int numColumns = 3;
+			int colWidth = (tableRight - tableLeft) / numColumns;
+
+			// Calculate the column of the click
+			int col = (x - tableLeft) / colWidth;
+
+			// Prevent player 1 from clicking on player 2's column and vice versa
+			if ((currentPlayer == 1 && col != 1) || (currentPlayer == 2 && col != 2)) {
 				break;
 			}
 

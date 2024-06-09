@@ -31,6 +31,8 @@ static int potentialScore = 0;
 static int diceFaces[5];
 static int scores[2][16] = { 0 };
 
+HWND hButton;
+
 // Call this function at the beginning of your program
 void CreateConsole()
 {
@@ -188,17 +190,11 @@ void onScoreTableClick(int row) {
 	// It shouldnt matter which dice faces are any of the numbers above
 	potentialScore = 0;
 
-	CreateConsole();
-
 	int sortedDiceFaces[5];
 	for (int i = 0; i < 5; ++i) {
 		sortedDiceFaces[i] = diceFaces[i];
 	}
 	std::sort(sortedDiceFaces, sortedDiceFaces + 5);
-	/*for (int i = 0; i < 5; ++i) {
-		std::cout << sortedDiceFaces[i] << " ";
-	}
-	std::cout << std::endl;*/
 
 	// Removing duplicates
 	std::vector<int> uniqueFaces;
@@ -220,18 +216,18 @@ void onScoreTableClick(int row) {
 	
 	// Small Straight
 	// Three of a kind
-	if (row == 9 && sortedDiceFaces[0] == sortedDiceFaces[2] || sortedDiceFaces[1] == sortedDiceFaces[3] || sortedDiceFaces[2] == sortedDiceFaces[4]) {
+	if (row == 9 && (sortedDiceFaces[0] == sortedDiceFaces[2] || sortedDiceFaces[1] == sortedDiceFaces[3] || sortedDiceFaces[2] == sortedDiceFaces[4])) {
 		potentialScore = sortedDiceFaces[0] + sortedDiceFaces[1] + sortedDiceFaces[2] + sortedDiceFaces[3] + sortedDiceFaces[4];
 	}
 
 	// Four of a kind
-	if (row == 10 && sortedDiceFaces[0] == sortedDiceFaces[3] || sortedDiceFaces[1] == sortedDiceFaces[4]) {
+	if (row == 10 && (sortedDiceFaces[0] == sortedDiceFaces[3] || sortedDiceFaces[1] == sortedDiceFaces[4])) {
 		potentialScore = sortedDiceFaces[0] + sortedDiceFaces[1] + sortedDiceFaces[2] + sortedDiceFaces[3] + sortedDiceFaces[4];
 	}
 
 	// Full House
-	if (row == 11 && (sortedDiceFaces[0] == sortedDiceFaces[1] && sortedDiceFaces[2] == sortedDiceFaces[3] && sortedDiceFaces[3] == sortedDiceFaces[4]) ||
-		(sortedDiceFaces[0] == sortedDiceFaces[1] && sortedDiceFaces[1] == sortedDiceFaces[2] && sortedDiceFaces[3] == sortedDiceFaces[4])) {
+	if (row == 11 && ((sortedDiceFaces[0] == sortedDiceFaces[1] && sortedDiceFaces[2] == sortedDiceFaces[3] && sortedDiceFaces[3] == sortedDiceFaces[4]) ||
+		(sortedDiceFaces[0] == sortedDiceFaces[1] && sortedDiceFaces[1] == sortedDiceFaces[2] && sortedDiceFaces[3] == sortedDiceFaces[4]))) {
 		potentialScore = 25;
 	}
 
@@ -306,6 +302,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	// Initialize prevPlayerName to an empty string or any value that is not a valid player name
 	static std::wstring prevPlayerName = L"";
 
+
 	switch (message)
 	{
 	case WM_CREATE:
@@ -317,7 +314,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			//std::cout << "diceFaces[" << i << "] = " << diceFaces[i] << std::endl;
 		}
 
-		HWND hButton = CreateWindow(
+		hButton = CreateWindow(
 			L"BUTTON",
 			L"Roll Dice",
 			WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
@@ -335,10 +332,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		int x = GET_X_LPARAM(lParam);
 		int y = GET_Y_LPARAM(lParam);
-
-		int locationX = LOWORD(lParam);
-		int locationY = HIWORD(lParam);
-		//onScoreTableClick(locationX, locationY);
 
 		// Check if any die was clicked
 		for (int i = 0; i < numDice; ++i) {
@@ -360,27 +353,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		if (x >= tableLeft && x <= tableRight) {
 			int rowHeight = (tableBottom - tableTop) / numRows;
 			int row = (y - tableTop) / rowHeight;
+			int boxInRow = (y - tableTop) % rowHeight;
+
+			if (row == 7 || row == 8 || row == 16) {
+				break;
+			}
 
 			if (row >= 0 && row < numRows) {
 				onScoreTableClick(row);
-				CreateConsole();
 
 				// Store the potential score in the corresponding element of the scores array
 				scores[currentPlayer - 1][row] = potentialScore;
-				std::cout << "Row: " << row << std::endl;
-				potentialScore = 0;
-
-				if (players[currentPlayer - 1] != prevPlayerName) {
-					for (int i = 0; i < numDice; ++i) {
-						heldDice[i] = false;
-						diceFaces[i] = (rand() % 6) + 1;
-					}
-				}
 
 				currentPlayer = (currentPlayer % 2) + 1;
 				prevPlayerName = players[currentPlayer - 1];
-				rollAttempts = 2; // Reset rollAttempts for the next player
-				InvalidateRect(hWnd, NULL, TRUE); // Redraw the window
+				if (rollAttempts == 0) {
+					rollAttempts = 2; // Reset rollAttempts for the next player
+					EnableWindow(hButton, TRUE);
+
+					for (int i = 0; i < numDice; i++) {
+						heldDice[i] = false;
+						diceFaces[i] = (rand() % 6) + 1;
+					}
+					InvalidateRect(hWnd, NULL, TRUE); // Redraw the window
+
+					potentialScore = 0;
+					totalScorePlayer1 = 0;
+					totalScorePlayer2 = 0;
+				}
 			}
 		}
 
@@ -446,13 +446,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			int y = tableTop + i * rowHeight;
 			std::wstringstream ss1, ss2;
 			ss1 << scores[0][i];
-			ss2 << scores[1][i - 1];
+			ss2 << scores[1][i];
 			std::wstring scoreStr1 = ss1.str();
 			std::wstring scoreStr2 = ss2.str();
-			TextOut(hdc, tableLeft + 180, y + 20, scoreStr1.c_str(), scoreStr1.length());
-			TextOut(hdc, tableLeft + 345, y + 20, scoreStr2.c_str(), scoreStr2.length());  // some error here causes large number to be displayed
+			TextOut(hdc, tableLeft + 180, y + 20, scoreStr1.c_str(), static_cast<int>(scoreStr1.length()));
+			TextOut(hdc, tableLeft + 345, y + 20, scoreStr2.c_str(), static_cast<int>(scoreStr2.length()));  // some error here causes large number to be displayed
 			MoveToEx(hdc, tableLeft, y, NULL);
 			LineTo(hdc, tableRight, y);
+
 		}
 
 		// Draw the table vertical lines for the columns
@@ -484,12 +485,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		std::wstring totalScorePlayer1Text = L"Total Score Player 1 " + std::to_wstring(totalScorePlayer1);
 		TextOut(hdc, 10, 150, totalScorePlayer1Text.c_str(), totalScorePlayer1Text.length());
 
+		//scores[0][16] = totalScorePlayer1;
+
 		for (int i = 0; i < 16; ++i) {
 			totalScorePlayer2 += scores[1][i];
 		}
 
 		std::wstring totalScorePlayer2Text = L"Total Score Player 2 " + std::to_wstring(totalScorePlayer2);
 		TextOut(hdc, 10, 190, totalScorePlayer2Text.c_str(), totalScorePlayer2Text.length());
+
+		//scores[1][16] = totalScorePlayer2;
 
 		// Draw player names in the first row of the table
 		SetBkMode(hdc, TRANSPARENT);
@@ -530,19 +535,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-			// If rollAttempts has reached 0, calculate the score and reset rollAttempts
 			if (rollAttempts == 0) {
-				for (int i = 0; i < numDice; i++) {
-					// I want to add the score from the onScoreTableClick function to potentialScore
-					//potentialScore += diceFaces[i];
-
-					/*if (potentialScore >= 63) {
-						potentialScore += 35;
-					}*/
-				}
-				
-				//potentialScore = 0;
-				//
+				EnableWindow(hButton, FALSE);
 			}
 			
 			// Redraw the window to update the roll attempts and score text

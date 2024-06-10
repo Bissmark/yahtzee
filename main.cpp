@@ -29,7 +29,7 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 static int potentialScore = 0;
 static int diceFaces[5];
-static int scores[2][16] = { 0 };
+static int scores[2][17] = { 0 };
 
 HWND hButton;
 
@@ -255,6 +255,16 @@ void onScoreTableClick(int row) {
 	if (row == 15 && sortedDiceFaces[0] == sortedDiceFaces[4]) {
 		potentialScore = 50;
 	}
+
+	// Store the potential score in the corresponding element of the scores array
+	scores[currentPlayer - 1][row] = potentialScore;
+
+	// Update the total score for the current player
+	int totalScore = 0;
+	for (int i = 0; i < 16; ++i) {
+		totalScore += scores[currentPlayer - 1][i];
+	}
+	scores[currentPlayer - 1][16] = totalScore;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -289,15 +299,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	static int player1Score = 0;
 	static int player2Score = 0;
 
-	static int totalScorePlayer1 = 0;
-	static int totalScorePlayer2 = 0;
+	int totalScorePlayer1 = 0;
+	int totalScorePlayer2 = 0;
+
+	static int topSectionPlayer1 = 0;
+	static int topSectionPlayer2 = 0;
 
 	// Define dimensions of the scoring table
 	static int tableLeft = startX + 1500;
 	static int tableTop = 100;
 	static int tableRight = tableLeft + 500;
 	static int tableBottom = tableTop + 1000;
-	const int numRows = 17;
+	static int numRows = 17;
 
 	// Initialize prevPlayerName to an empty string or any value that is not a valid player name
 	static std::wstring prevPlayerName = L"";
@@ -311,7 +324,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		for (int i = 0; i < 5; ++i) {
 			diceFaces[i] = (rand() % 6) + 1;
-			//std::cout << "diceFaces[" << i << "] = " << diceFaces[i] << std::endl;
 		}
 
 		hButton = CreateWindow(
@@ -370,6 +382,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			}
 
+			if (rollAttempts != 0) {
+				break;
+			}
+
 			if (row >= 0 && row < numRows) {
 				onScoreTableClick(row);
 
@@ -389,8 +405,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					InvalidateRect(hWnd, NULL, TRUE); // Redraw the window
 
 					potentialScore = 0;
-					totalScorePlayer1 = 0;
-					totalScorePlayer2 = 0;
 				}
 			}
 		}
@@ -455,17 +469,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		// Draw the table horizontal lines for the rows
 		for (int i = 1; i < numRows; i++) {
 			int y = tableTop + i * rowHeight;
-			std::wstringstream ss1, ss2;
-			ss1 << scores[0][i];
-			ss2 << scores[1][i];
-			std::wstring scoreStr1 = ss1.str();
-			std::wstring scoreStr2 = ss2.str();
-			TextOut(hdc, tableLeft + 180, y + 20, scoreStr1.c_str(), static_cast<int>(scoreStr1.length()));
-			TextOut(hdc, tableLeft + 345, y + 20, scoreStr2.c_str(), static_cast<int>(scoreStr2.length()));  // some error here causes large number to be displayed
 			MoveToEx(hdc, tableLeft, y, NULL);
 			LineTo(hdc, tableRight, y);
-
 		}
+
+		//CreateConsole();
+		totalScorePlayer1 = 0;
+		totalScorePlayer2 = 0;
+
+		for (int i = 1; i < numRows; i++) {
+			int y = tableTop + i * rowHeight;
+			std::wstringstream ss1;
+			std::wstringstream ss2;
+			if (i == 16) {
+				for (int j = 0; j < 2; j++) {
+					std::wstringstream ss;
+					ss << scores[j][i];
+					std::wstring scoreStr = ss.str();
+					TextOut(hdc, tableLeft + (j + 1) * colWidth + 15, y + 20, scoreStr.c_str(), static_cast<int>(scoreStr.length()));
+				}
+			}
+			else {
+				ss1 << scores[0][i];
+				ss2 << scores[1][i];
+			}
+			std::wstring scoreStr1 = ss1.str();
+			std::wstring scoreStr2 = ss2.str();
+			std::string str2 = std::string(scoreStr2.begin(), scoreStr2.end());
+			std::cout << str2 << std::endl;
+			TextOut(hdc, tableLeft + 180, y + 20, scoreStr1.c_str(), static_cast<int>(scoreStr1.length()));
+			TextOut(hdc, tableLeft + 345, y + 20, scoreStr2.c_str(), static_cast<int>(scoreStr2.length()));
+		}
+
+		
+
 
 		// Draw the table vertical lines for the columns
 		for (int i = 1; i < numColumns; ++i) {
@@ -490,22 +527,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		TextOut(hdc, 10, 110, potentialScoreText.c_str(), potentialScoreText.length());
 
 		for (int i = 0; i < 16; ++i) {
-			totalScorePlayer1 += scores[0][i];
-		}
-
-		std::wstring totalScorePlayer1Text = L"Total Score Player 1 " + std::to_wstring(totalScorePlayer1);
-		TextOut(hdc, 10, 150, totalScorePlayer1Text.c_str(), totalScorePlayer1Text.length());
-
-		//scores[0][16] = totalScorePlayer1;
-
-		for (int i = 0; i < 16; ++i) {
 			totalScorePlayer2 += scores[1][i];
 		}
-
-		std::wstring totalScorePlayer2Text = L"Total Score Player 2 " + std::to_wstring(totalScorePlayer2);
-		TextOut(hdc, 10, 190, totalScorePlayer2Text.c_str(), totalScorePlayer2Text.length());
-
-		//scores[1][16] = totalScorePlayer2;
 
 		// Draw player names in the first row of the table
 		SetBkMode(hdc, TRANSPARENT);
@@ -523,6 +546,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			TextOut(hdc, x + 20, y + (rowHeight - 20) / 2, players[i].c_str(), players[i].length());
 		};
+
+		topSectionPlayer1 = 0;
+		topSectionPlayer2 = 0;
+
+		// Calculate the top section score for player 1, if its above 63 then add 35 to the bonus score
+		for (int i = 1; i < 7; ++i) {
+			topSectionPlayer1 += scores[0][i];
+			topSectionPlayer2 += scores[1][i];
+		}
+
+		if (topSectionPlayer1 >= 63) {
+			scores[0][7] = 35; // Bonus score
+			TextOut(hdc, tableLeft + 345, tableTop + 7 * (tableBottom - tableTop) / numRows + (tableBottom - tableTop) / 2, L"35", 2);
+		}
+
+		if (topSectionPlayer2 >= 63) {
+			scores[1][7] = 35; // Bonus score
+			TextOut(hdc, tableLeft + 180, tableTop + 7 * (tableBottom - tableTop) / numRows + (tableBottom - tableTop) / 2, L"35", 2);
+		}
 
 		EndPaint(hWnd, &ps);
 	}
